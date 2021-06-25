@@ -169,6 +169,7 @@ def evaluate(model, dataset, topN):
                                     item_input=item_input,
                                     num_idx=n_u)
         map_item_score = {}
+
         for i in range(len(item_input)):
             item = item_input[i]
             map_item_score[item] = predictions[i]

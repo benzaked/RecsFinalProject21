@@ -17,9 +17,9 @@ def parse_args():
     parser = ArgumentParser(description='Run NAIS.')
     parser.add_argument('--path', nargs='?', default='data',
                         help='Input data path.')
-    parser.add_argument('--data_set_name', nargs='?', default='ml-1m',
+    parser.add_argument('--data_set_name', nargs='?', default='pinterest-20',
                         help='Choose a dataset, either ml-1m or pinterest-20.')
-    parser.add_argument('--epochs', type=int, default=100,
+    parser.add_argument('--epochs', type=int, default=60,
                         help='Number of epochs.')
     parser.add_argument('--num_neg', type=int, default=4,
                         help='Number of negative instances to pair with a positive instance.')
@@ -32,13 +32,13 @@ def parse_args():
                         help='Embedding size.')
     parser.add_argument('--attention_factor', type=int, default=16,
                         help='Attention factor.')
-    parser.add_argument('--algorithm', type=str, default='concat',
+    parser.add_argument('--algorithm', type=str, default='prod',
                         help='Either concat or prod')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='Learning rate.')
     parser.add_argument('--beta', type=float, default=0.5,
                         help='Smoothing exponent of softmax.')
-    parser.add_argument('--regs', nargs='?', default='(1e-7, 1e-7, 1e-7, 1e-7, 1e-7)',
+    parser.add_argument('--regs', nargs='?', default='(1e-7, 1e-7, 1e-5, 1e-7, 1e-7)',
                         help='Regularization parameter.')
     parser.add_argument('--verbose', type=int, default=1,
                         help='Show performance per iteration.')
@@ -192,12 +192,12 @@ if __name__ == '__main__':
     # whether interrupted or not
     start_epochs = 0
 
-    directory = os.path.join('pretrain', 'NAIS', args.data_set_name)
+    directory = os.path.join('pretrain', 'NAIS', args.data_set_name, str(args.embedding_size))
     if not os.path.exists(directory):
         os.makedirs(directory)
 
     # logging setting
-    log_dir = os.path.join('log', 'NAIS_%s.log' % args.data_set_name)
+    log_dir = os.path.join('log', f'NAIS_{args.data_set_name}_{args.embedding_size}.log')
     if not os.path.exists('log'):
         os.mkdir('log')
     if logging.root.handlers:
@@ -230,7 +230,7 @@ if __name__ == '__main__':
                     num_items=dataset.num_items,
                     args=args)
         ckpt = tf.train.Checkpoint(model=fism)
-        ckpt.restore(tf.train.latest_checkpoint('pretrain/FISM/ml-1m_FISM_1573647530.ckpt'))
+        ckpt.restore(tf.train.latest_checkpoint(f'pretrain/FISM/{args.data_set_name}_FISM_1573647530.ckpt'))
         model.P = fism.P
         model.Q = fism.Q
 

@@ -48,7 +48,7 @@ class RecommendationsAlgorithms:
         self.user_user_predictions = clean_predictions(self.user_user_predictions)
         self.nais_predictions = clean_predictions(self.nais_predictions, 'nais')
 
-    def get_content_sim(movies_df):
+    def get_content_sim(self, movies_df):
       similarities = cosine_similarity(movies_df.drop(['movie_id', 'movie_title', 'movie_genre', 'title', 'year','movie_true_id'],1))
       sim = pd.DataFrame(similarities, movies_df.index, movies_df.index)
       sim.columns = [int(i) for i in sim.columns]
@@ -129,7 +129,7 @@ class RecommendationsAlgorithms:
         projects_score = self.projects_popularity_scores.drop(known_user_projects)
         return list(projects_score.nlargest(k).index)
 
-    def get_recommendations_content(known_user_projects, k_similar, user_test, sim, movies_df):
+    def get_recommendations_content(self, known_user_projects, k_similar, user_test, sim, movies_df):
       user_projects = sim[known_user_projects]
       user_projects = pd.DataFrame(0, columns=user_projects.columns, index=user_projects.index)
       neighbourhood_size = movies_df.index.size
@@ -204,21 +204,57 @@ class RecommendationsAlgorithms:
         row['ranked_item'] = self.item_item_predictions.iloc[user_index]['ranked_item']
         return row
 
+
+def read_content_data():
+    movies_df = pd.read_csv('ML_content_data/movies_df.csv')
+    ratings = pd.read_csv('ML_content_data/ratings.csv')
+    return movies_df, ratings
+
+def get_train_for_content(path_to_test, ratings):
+    test = pd.read_csv(path_to_test, delimiter='\t', header=None)
+    test.columns = ['user_id', 'movie_true_id', 'rating', 'timestamp']
+    cols = ['user_id', 'movie_true_id']
+    train = ratings[~ratings.set_index(cols).index.isin(test.set_index(cols).index)]
+    return train
+
 def create_predictions_and_choose(data_set):
     path = 'data'
+    is_content = data_set =='ml-1m'
+    negative_path = f'data/{data_set}.test.negative'
+    if is_content:
+        movies_df, ratings = read_content_data()
+        path_to_test = f'data/{data_set}.test.rating'
+        train = get_train_for_content(path_to_test, ratings)
     data = DataSet(path, data_set)
-    test_negative = pd.read_csv(f'data/{data_set}.test.negative', delimiter='\t', header=None)
+    test_negative = pd.read_csv(negative_path, delimiter='\t', header=None)
     test_negative[['user_id']] = test_negative.apply(lambda x: int(x[0].split(',')[0].replace('(', '')), 1)
     test_negative[[100]] = test_negative.apply(lambda x: int(x[0].split(',')[1].replace(')', '')), 1)
     test_negative = test_negative.drop(columns=[0, 'user_id'])
+
     R = RecommendationsAlgorithms(pd.DataFrame.sparse.from_spmatrix(data.trainMatrix), test_negative, dataset=data_set)
     pred_user_user = []
     pred_item_item = []
+    pred_content = []
     k = 20
-    for user in R.data_item.index:
-        a = R.get_recommendations_dict(user, k)
-        pred_item_item.append([user, test_negative.loc[user][100], a['item_item'].index.values, a['item_item'].values])
-        pred_user_user.append([user, test_negative.loc[user][100], a['user_user'].index.values, a['user_user'].values])
+    if is_content:
+        for user in R.data_item.index:
+            a = R.get_recommendations_dict(user, k)
+            pred_item_item.append([user, test_negative.loc[user][100], a['item_item'].index.values, a['item_item'].values])
+            pred_user_user.append([user, test_negative.loc[user][100], a['user_user'].index.values, a['user_user'].values])
+            user_film_list = train[train.user_id == user].movie_true_id.tolist()
+            sim = R.get_content_sim(movies_df)
+            recommendations_user = R.get_recommendations_content(user_film_list, k,
+                                                              test_negative.loc[user][np.arange(1, 101)], sim, movies_df)
+            pred_content.append([user, test_negative.loc[user][100], recommendations_user.index, recommendations_user.values])
+        df_content = pd.DataFrame(pred_content, columns=['user', 'ranked_item', 'predicted_list','predicted_score'])
+        df_content.predicted_list = df_content.predicted_list.apply(lambda x: x.values)
+        df_content.to_csv(f'predictions/{data_set}/content.csv', index=False)
+    else:
+        for user in R.data_item.index:
+            a = R.get_recommendations_dict(user, k)
+            pred_item_item.append([user, test_negative.loc[user][100], a['item_item'].index.values, a['item_item'].values])
+            pred_user_user.append([user, test_negative.loc[user][100], a['user_user'].index.values, a['user_user'].values])
+
     # outputting the tables to compare the models
     df_item_item = pd.DataFrame(pred_item_item, columns=['user', 'ranked_item', 'predicted_list', 'predicted_score'])
     df_user_user = pd.DataFrame(pred_user_user, columns=['user', 'ranked_item', 'predicted_list', 'predicted_score'])

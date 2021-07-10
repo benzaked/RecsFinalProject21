@@ -66,7 +66,7 @@ if __name__ == '__main__':
                                      optimizer=optimizer)
     manager = tf.train.CheckpointManager(checkpoint,
                                          directory=f'pretrain/NAIS/{args.data_set_name}',
-                                         checkpoint_name='{args.checkpoint_name}.ckpt',
+                                         checkpoint_name=f'{args.checkpoint_name}.ckpt',
                                          max_to_keep=1)
     checkpoint.restore(manager.latest_checkpoint)
     hits, ndcgs, mrrs = [], [], []

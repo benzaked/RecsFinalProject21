@@ -1,0 +1,4 @@
+model_checkpoint_path: "NAIS_1624607273.ckpt-18"
+all_model_checkpoint_paths: "NAIS_1624607273.ckpt-18"
+all_model_checkpoint_timestamps: 1624719313.5876594
+last_preserved_timestamp: 1624607373.852297

@@ -52,5 +52,4 @@ Both files will save in :
 to generate the plots please see the files
 ```
 top@k predictions all models compare.ipynb
-top_k_predictions_all_models_compare.ipynb
 ```

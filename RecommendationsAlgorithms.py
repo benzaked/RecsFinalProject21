@@ -26,7 +26,7 @@ class RecommendationsAlgorithms:
     def __init__(self, data_item ,test_negative, dataset='ml-1m'):
         self.data_item = data_item
         self.item_mean, self.sim_matrix = self.get_item_item_params()
-        self.projects_popularity_scores = data_item.astype(bool).sum(axis=0)
+        self.items_popularity_scores = data_item.astype(bool).sum(axis=0)
         self.model_knn = NearestNeighbors(n_neighbors=5, radius=1.0, algorithm='brute', leaf_size=30, metric='cosine')
         self.model_knn.fit(self.data_item)
         self.test_negative = test_negative
@@ -63,29 +63,29 @@ class RecommendationsAlgorithms:
         similarities = 1 - distances.flatten()
         return pd.Series(similarities, indices[0])
 
-    def get_recommendations_user_user(self, user_index, known_user_projects, test_items, k):
+    def get_recommendations_user_user(self, user_index, known_user_items, test_items, k):
         similar_users = self.find_k_similar_users(user_index)
         if user_index in similar_users.index:
             similar_users = similar_users.drop(user_index, 0)
-        similar_projects = [self.get_user_projects(user, self.data_item) for user in similar_users.index]
-        similar_projects = list(set(chain(*similar_projects)))  # get all the projects from the dataframe
-        projects_scores = dict.fromkeys(similar_projects, 0)
-        for project in known_user_projects:
-            if project in projects_scores:
-                del projects_scores[project]
-        # removing not relevant projects
-        d = dict(projects_scores)
-        project_naibors = list(d.keys())
+        similar_items = [self.get_user_items(user, self.data_item) for user in similar_users.index]
+        similar_items = list(set(chain(*similar_items)))  # get all the items from the dataframe
+        items_scores = dict.fromkeys(similar_items, 0)
+        for item in known_user_items:
+            if item in items_scores:
+                del items_scores[item]
+        # removing not relevant items
+        d = dict(items_scores)
+        item_naibors = list(d.keys())
         t = test_items
-        for k in project_naibors:
+        for k in item_naibors:
             if k not in t:
                 del d[k]
-        projects_scores = d
-        t = np.array(similar_users).dot(self.data_item[projects_scores.keys()].loc[similar_users.index])
-        projects_scores_to_fit = np.array(t).reshape(-1, 1)
-        scaled_scores = preprocessing.StandardScaler().fit(projects_scores_to_fit).transform(projects_scores_to_fit)
-        projects_scores = pd.DataFrame(scaled_scores, index=pd.Series(projects_scores).index)[0]
-        return pd.Series(projects_scores).astype(float).nlargest(20)
+        items_scores = d
+        t = np.array(similar_users).dot(self.data_item[items_scores.keys()].loc[similar_users.index])
+        items_scores_to_fit = np.array(t).reshape(-1, 1)
+        scaled_scores = preprocessing.StandardScaler().fit(items_scores_to_fit).transform(items_scores_to_fit)
+        items_scores = pd.DataFrame(scaled_scores, index=pd.Series(items_scores).index)[0]
+        return pd.Series(items_scores).astype(float).nlargest(20)
 
     def get_item_item_params(self):
         data_sparse = sparse.csr_matrix(self.data_item.values.astype(np.float))
@@ -98,18 +98,18 @@ class RecommendationsAlgorithms:
         des = sim.describe().T
         return des['mean'].mean(), sim
 
-    def get_user_projects(self, user_index, data_items):
+    def get_user_items(self, user_index, data_items):
 
         known_user_likes = data_items.loc[user_index]
         known_user_likes = known_user_likes[known_user_likes > 0].index.values
         return known_user_likes
 
     def get_recommendations_item_item(self, user_index, interactions ,test_items, k_similar):
-        user_projects = self.sim_matrix[interactions]
+        user_items = self.sim_matrix[interactions]
         neighbourhood_size = 100
-        data_neighbours = pd.DataFrame(0, user_projects.columns, range(1, neighbourhood_size + 1))
-        for i in range(0, len(user_projects.columns)):
-            data_neighbours.iloc[i, :neighbourhood_size] = user_projects.iloc[0:, i].sort_values(0, False)[
+        data_neighbours = pd.DataFrame(0, user_items.columns, range(1, neighbourhood_size + 1))
+        for i in range(0, len(user_items.columns)):
+            data_neighbours.iloc[i, :neighbourhood_size] = user_items.iloc[0:, i].sort_values(0, False)[
                                                            :neighbourhood_size].index
         # Construct the neighbourhood from the most similar items to the
         # ones our user has already liked.
@@ -122,56 +122,56 @@ class RecommendationsAlgorithms:
         score = neighbourhood.dot(user_vector).div(neighbourhood.sum(1))
         score = score.loc[np.intersect1d(score.index ,test_items)]
 
-        recommended_projects_scores = score.astype(float).nlargest(k_similar)
-        return recommended_projects_scores
+        recommended_items_scores = score.astype(float).nlargest(k_similar)
+        return recommended_items_scores
 
-    def get_recommendations_popularity(self, user_index, known_user_projects, k):
-        projects_score = self.projects_popularity_scores.drop(known_user_projects)
-        return list(projects_score.nlargest(k).index)
+    def get_recommendations_popularity(self, user_index, known_user_items, k):
+        items_score = self.items_popularity_scores.drop(known_user_items)
+        return list(items_score.nlargest(k).index)
 
-    def get_recommendations_content(self, known_user_projects, k_similar, user_test, sim, movies_df):
-      user_projects = sim[known_user_projects]
-      user_projects = pd.DataFrame(0, columns=user_projects.columns, index=user_projects.index)
+    def get_recommendations_content(self, known_user_items, k_similar, user_test, sim, movies_df):
+      user_items = sim[known_user_items]
+      user_items = pd.DataFrame(0, columns=user_items.columns, index=user_items.index)
       neighbourhood_size = movies_df.index.size
-      data_neighbours = pd.DataFrame(0, user_projects.columns, range(1, neighbourhood_size + 1))
-      for i in range(0, len(user_projects.columns)):
-          data_neighbours.iloc[i, :neighbourhood_size] = user_projects.iloc[0:, i].sort_values(0, False)[:neighbourhood_size].index
-      most_similar_to_likes = data_neighbours.loc[known_user_projects]
+      data_neighbours = pd.DataFrame(0, user_items.columns, range(1, neighbourhood_size + 1))
+      for i in range(0, len(user_items.columns)):
+          data_neighbours.iloc[i, :neighbourhood_size] = user_items.iloc[0:, i].sort_values(0, False)[:neighbourhood_size].index
+      most_similar_to_likes = data_neighbours.loc[known_user_items]
       similar_list = most_similar_to_likes.values.tolist()
       similar_list = list(set([item for sublist in similar_list for item in sublist]))
       data_items_col = user_test.values
       similar_list = [x for x in similar_list if x in data_items_col]
 
-      data_matrix = sim.loc[known_user_projects]
+      data_matrix = sim.loc[known_user_items]
       data_matrix = data_matrix[[p for p in similar_list]]
       # for recommendation:
       score = data_matrix.mean()
       score = score[score > 0]  # filter out score = 0
-      relevant_projects_scores = score.nlargest(k_similar)
-      return relevant_projects_scores
+      relevant_items_scores = score.nlargest(k_similar)
+      return relevant_items_scores
 
     def get_recommendations_dict(self, user_index, k):
-        known_user_projects = self.get_user_projects(user_index, self.data_item)
+        known_user_items = self.get_user_items(user_index, self.data_item)
         test = self.test_negative.iloc[user_index].to_list()
-        # explained_content = self.get_recommendations_content(known_user_projects, k)
-        explained_popularity = self.get_recommendations_popularity(user_index, known_user_projects, k)
-        explained_item_item = self.get_recommendations_item_item(user_index, known_user_projects ,test, k)
-        explained_user_user = self.get_recommendations_user_user(user_index, known_user_projects,test, k)
+        # explained_content = self.get_recommendations_content(known_user_items, k)
+        explained_popularity = self.get_recommendations_popularity(user_index, known_user_items, k)
+        explained_item_item = self.get_recommendations_item_item(user_index, known_user_items ,test, k)
+        explained_user_user = self.get_recommendations_user_user(user_index, known_user_items,test, k)
         return {'item_item': explained_item_item, 'user_user': explained_user_user, 'popularity': explained_popularity}
 
     def get_recommendations_dict_ordered(self, user_index, k):
-        known_user_projects = self.get_user_projects(user_index, self.data_item)
+        known_user_items = self.get_user_items(user_index, self.data_item)
         nais_predictions = self.nais_predictions.iloc[user_index]['predicted_list'][:k]
         if self.dataset=='ml-1m':
           explained_content = self.content_predictions.iloc[user_index]['predicted_list'][:k]
         else:
           explained_content =[]
-        explained_popularity = self.get_recommendations_popularity(user_index, known_user_projects, k)
+        explained_popularity = self.get_recommendations_popularity(user_index, known_user_items, k)
         explained_popularity = [str(i) for i in explained_popularity ]
         explained_user_user = self.user_user_predictions.iloc[user_index]['predicted_list'][:k]
         explained_item_item = self.item_item_predictions.iloc[user_index]['predicted_list'][:k]
-        projects = {}
-        for project in nais_predictions:
+        items = {}
+        for item in nais_predictions:
             """
             priority:
             - user_user, item_item, features.
@@ -179,28 +179,28 @@ class RecommendationsAlgorithms:
             - if still non - general 
             """
             max_index = {'popularity': 100, 'user_user': 100, 'item_item': 100, 'content': 100, 'general': 100}
-            if project in explained_user_user:
-                max_index['user_user'] = explained_user_user.index(project)
-            if project in explained_item_item:
-                max_index['item_item'] = explained_item_item.index(project)
-            if project in explained_content:
-                max_index['content'] = explained_content.index(project)
+            if item in explained_user_user:
+                max_index['user_user'] = explained_user_user.index(item)
+            if item in explained_item_item:
+                max_index['item_item'] = explained_item_item.index(item)
+            if item in explained_content:
+                max_index['content'] = explained_content.index(item)
             max_value = min(max_index.values())
             if max_value == 100:
-                if project in explained_popularity:
-                    max_index['popularity'] = explained_popularity.index(project)
+                if item in explained_popularity:
+                    max_index['popularity'] = explained_popularity.index(item)
                 else:
                     max_index['general'] = 0  # smaller than -100
             max_value = min(max_index.values())
             max_key = [k for k in max_index if max_index[k] == max_value]
 
-            projects[project] = max_key[0]
-        # transform projects values into dictionary keys
+            items[item] = max_key[0]
+        # transform items values into dictionary keys
         row = defaultdict(list)
-        for key, value in projects.items():
+        for key, value in items.items():
             row[value].append(key)
         row['nais_predictions'] = nais_predictions
-        row['known_user_projects'] = known_user_projects
+        row['known_user_items'] = known_user_items
         row['ranked_item'] = self.item_item_predictions.iloc[user_index]['ranked_item']
         return row
 

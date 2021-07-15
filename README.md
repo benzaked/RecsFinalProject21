@@ -25,7 +25,7 @@ python NAIS.py --pretrain 1 --path data --data_set_name ml-1m --epochs 100 --num
 ```
 python Get_Nais_Predictions.py --data_set_name ml-1m --embedding_size 16 
 ```
-This command will use the pre-trained NAIS model and create predictions to the folder:
+ The command above will use the pre-trained NAIS model to create predictions on the folder:
 ```
 /predictions/NAIS/ml-1m/ 
 ```
@@ -43,7 +43,7 @@ those files contains the recommendations according to each model and division of
 python RecommendationsAlgorithms.py  
 ```
 This script will re order according to our approaches. The script takes the recommendations 
-provided in the output.csv and create new file 're_ordered_{embedding_size.csv} '
+provided in the output.csv and create new file 're_ordered_{embedding_size}.csv '
 Both files will save in :
 ```
 /predictions/{dataset}/

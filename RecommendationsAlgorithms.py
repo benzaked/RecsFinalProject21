@@ -237,7 +237,9 @@ def create_predictions_and_choose(data_set):
     pred_content = []
     k = 20
     if is_content:
+
         for user in R.data_item.index:
+            print(user)
             a = R.get_recommendations_dict(user, k)
             pred_item_item.append([user, test_negative.loc[user][100], a['item_item'].index.values, a['item_item'].values])
             pred_user_user.append([user, test_negative.loc[user][100], a['user_user'].index.values, a['user_user'].values])

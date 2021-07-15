@@ -29,9 +29,9 @@ def get_best_order(idx, base_order=['item_item', 'user_user']):
     i = 0
     best_order = {}
     for alg in base_order:
-        project_list = output.iloc[idx][alg]
-        if project_list:
-            best_order[alg] = recs.index(project_list[0])
+        item_list = output.iloc[idx][alg]
+        if item_list:
+            best_order[alg] = recs.index(item_list[0])
     best_order = dict(sorted(best_order.items(), key=lambda item: item[1]))
     return list(best_order.keys())
 
@@ -42,11 +42,11 @@ def get_best_order_by_avg(idx, base_order=['item_item', 'user_user']):
       base_order.remove('content')
   best_order = {}
   for alg in base_order:
-      project_list = output.iloc[idx][alg]
-      if project_list:
+      item_list = output.iloc[idx][alg]
+      if item_list:
         l = []
-        for project in project_list:
-          l.append(recs.index(project))
+        for item in item_list:
+          l.append(recs.index(item))
         best_order[alg] = int(np.mean(l))
   best_order = dict(sorted(best_order.items(), key=lambda item: item[1]))
   return list(best_order.keys())
